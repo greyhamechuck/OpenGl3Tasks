@@ -1,0 +1,217 @@
+// Function: OpenGL implementation of 9 regions and a line segment for Cohen-Sutherland 2D Line Clipping
+#define FREEGLUT_STATIC
+#include <GL/freeglut.h>
+#include"windows.h"
+#define MAX_CHAR 128
+typedef struct { GLfloat x, y; } point;
+point P1 = { 130,270 }, P2 = { 350,350 }, P3 = { 240,270 }, P4 = { 360,350 }, P5 = { 70,230 }, P6 = { 180,320 }, P7 = { 300,125 }, P8 = {450,300};
+GLfloat win_x = 600, win_y = 600;
+GLfloat win_x_left = win_x / 3, win_x_right = win_x / 3 * 2, win_y_top = win_y / 3 * 2, win_y_bottom =
+win_y / 3;
+void drawString(const char* str) { // Display characters for the outcodes
+	static int isFirstCall = 1;
+	static GLuint lists;
+	if (isFirstCall) {
+		isFirstCall = 0;
+		lists = glGenLists(MAX_CHAR); // Generate a contiguous set of empty display lists
+		wglUseFontBitmaps(wglGetCurrentDC(), 0, MAX_CHAR, lists); // Convert characters into images
+	}
+	for (; *str != '\0'; ++str) {
+		glCallList(lists + *str); // Draw bitmap characters
+	}
+}
+void selectFont(int size, int charset, const char* face) { // Select a font face and size
+	HFONT hFont = CreateFontA(size, 0, 0, 0, FW_MEDIUM, 0, 0, 0, charset, OUT_DEFAULT_PRECIS,
+		CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH | FF_SWISS, face);
+	HFONT hOldFont = (HFONT)SelectObject(wglGetCurrentDC(), hFont);
+	DeleteObject(hOldFont);
+}
+void PlotLine(GLfloat x1, GLfloat y1, GLfloat x2, GLfloat y2) { // Draw a solid straight line
+	glBegin(GL_LINES);
+	glVertex2f(x1, y1);
+	glVertex2f(x2, y2);
+	glEnd();
+}
+void PlotStippleLine(GLfloat x1, GLfloat y1, GLfloat x2, GLfloat y2) { // Draw a dash straight line													   
+    glLineStipple(1, 0x0F0F);
+	glEnable(GL_LINE_STIPPLE);
+	glBegin(GL_LINES);
+	glVertex2f(x1, y1);
+	glVertex2f(x2, y2);
+	glEnd();
+	glDisable(GL_LINE_STIPPLE);
+}
+int CohenSutherlandPoint(point p) { // Determine the outcode for each of the two endpoints
+	int x = 0, y = 0;
+	if (p.x < win_x_left) { x = 0x1; } // 
+	else if (p.x > win_x_right) { x = 0x2; }
+	else { x = 0x0; }
+	if (p.y < win_y_bottom) { y = 0x4; }
+	else if (p.y > win_y_top) { y = 0x8; }
+	else { y = 0x0; }
+	return y + x;
+}
+
+// one intersection
+void inter1(point p1, point p2) {
+	int code1 = CohenSutherlandPoint(p1);
+	int code2 = CohenSutherlandPoint(p2);
+	GLfloat r = (p2.y - p1.y) / (p2.x - p1.x);
+	GLfloat y1 = (r * (200 - p1.x)) + p1.y;
+	GLfloat y2 = (r * (400 - p1.x)) + p1.y;
+	GLfloat x1 = ((200 - p1.y) / r) + p1.x;
+	GLfloat x2 = ((400 - p1.y) / r) + p1.x;
+	point s1{ 200,y1 };
+	point s2{ 400,y2 };
+	point s3{ x1,200 };
+	point s4{ x2,400 };
+	if (code1 == 0) {
+		if (CohenSutherlandPoint(s1) == 0) {
+			PlotStippleLine(s1.x, s1.y, p2.x, p2.y);
+			PlotLine(p1.x, p1.y, s1.x, s1.y);
+		}
+		else if (CohenSutherlandPoint(s2) == 0) {
+			PlotStippleLine(s2.x, s2.y, p2.x, p2.y);
+			PlotLine(p1.x, p1.y, s2.x, s2.y);
+		}
+		else if (CohenSutherlandPoint(s3) == 0) {
+			PlotStippleLine(s3.x, s3.y, p2.x, p2.y);
+			PlotLine(p1.x, p1.y, s3.x, s3.y);
+		}
+		else if (CohenSutherlandPoint(s3) == 0) {
+			PlotStippleLine(s4.x, s4.y, p2.x, p2.y);
+			PlotLine(p1.x, p1.y, s4.x, s4.y);
+		}
+	}
+	if (code2 == 0) {
+		if (CohenSutherlandPoint(s1) == 0) {
+			PlotStippleLine(s1.x, s1.y, p1.x, p1.y);
+			PlotLine(p2.x, p2.y, s1.x, s1.y);
+		}
+		else if (CohenSutherlandPoint(s2) == 0) {
+			PlotStippleLine(s2.x, s2.y, p1.x, p1.y);
+			PlotLine(p2.x, p2.y, s2.x, s2.y);
+		}
+		else if (CohenSutherlandPoint(s3) == 0) {
+			PlotStippleLine(s3.x, s3.y, p1.x, p1.y);
+			PlotLine(p2.x, p2.y, s3.x, s3.y);
+		}
+		else if (CohenSutherlandPoint(s4) == 0) {
+			PlotStippleLine(s4.x, s4.y, p1.x, p1.y);
+			PlotLine(p2.x, p2.y, s4.x, s4.y);
+		}
+	}
+}
+
+// two intersections
+void inter2(point p1, point p2) { 
+	GLfloat r = (p2.y - p1.y) / (p2.x - p1.x);
+	GLfloat y1 = (r * (200 - p1.x)) + p1.y;
+	GLfloat y2 = (r * (400 - p1.x)) + p1.y;
+	GLfloat x1 = ((200 - p1.y) / r) + p1.x;
+	GLfloat x2 = ((400 - p1.y) / r) + p1.x;
+	point s1{ 200,y1 };
+	point s2{ 400,y2 };
+	point s3{ x1,200 };
+	point s4{ x2,400 };
+	glColor3f(1, 1, 0);
+	PlotStippleLine(p1.x, p1.y, p2.x, p2.y);
+	glColor3f(1, 0, 0);
+
+	if (CohenSutherlandPoint(s1) == 0 && CohenSutherlandPoint(s2) == 0) {
+		PlotLine(s1.x, s1.y, s2.x, s2.y);
+	}
+	if (CohenSutherlandPoint(s1) == 0 && CohenSutherlandPoint(s3) == 0) {
+		PlotLine(s1.x, s1.y, s3.x, s3.y);
+	}
+	if (CohenSutherlandPoint(s1) == 0 && CohenSutherlandPoint(s4) == 0) {
+		PlotLine(s1.x, s1.y, s4.x, s4.y);
+	}
+	if (CohenSutherlandPoint(s2) == 0 && CohenSutherlandPoint(s3) == 0) {
+		PlotLine(s2.x, s2.y, s3.x, s3.y);
+	}
+	if (CohenSutherlandPoint(s2) == 0 && CohenSutherlandPoint(s4) == 0) {
+		PlotLine(s2.x, s2.y, s4.x, s4.y);
+	}
+	if (CohenSutherlandPoint(s3) == 0 && CohenSutherlandPoint(s4) == 0) {
+		PlotLine(s3.x, s3.y, s4.x, s4.y);
+	}
+}
+
+// to decide whether it is trivial or non-trivial
+void decide(point p1, point p2) { 
+	int code1 = CohenSutherlandPoint(p1);
+	int code2 = CohenSutherlandPoint(p2);
+	if (code1 == 0 && code2 == 0) { //trivial accept
+		glColor3f(1, 0, 0);
+		PlotLine(p1.x, p1.y, p2.x, p2.y);
+
+	}
+	else if ((code1 & code2) != 0) { // trivial reject
+		glColor3f(1, 1, 0);
+		PlotStippleLine(p1.x, p1.y, p2.x, p2.y);
+	}
+	// two non-trivial reject
+	else if ((code1-code2 !=0)&& (code1 == 0 || code2 == 0)) {
+		glColor3f(1, 1, 0);
+		inter1(p1, p2);
+	}
+	else {
+		inter2(p1, p2);
+	}
+}
+
+
+void renderScene(void) { // Draw outcode regions, outcode values, and a line segment to be clipped
+	glClearColor(0, 0, 0, 0);
+	glClear(GL_COLOR_BUFFER_BIT);
+	glColor3f(1, 1, 1);
+	selectFont(24, ANSI_CHARSET, "Comic Sans MS");
+	//plot outcodes
+	glRasterPos2f(win_x_left / 2 - 30, win_y_top / 2 + win_y / 2);
+	drawString("1001");
+	glRasterPos2f(win_x_left / 2 - 30, win_y_top / 2 + win_y_bottom / 2);
+	drawString("0001");
+	glRasterPos2f(win_x_left / 2 - 30, win_y_bottom / 2);
+	drawString("0101");
+	glRasterPos2f(win_x_right / 2 - 30 + win_x_left / 2, win_y_top / 2 + win_y / 2);
+	drawString("1000");
+	glRasterPos2f(win_x_right / 2 - 20 + win_x_left / 2, win_y_top / 2 + win_y_bottom / 2);
+	drawString("0000");
+	glRasterPos2f(win_x_right / 2 - 30 + win_x_left / 2, win_y_bottom / 2);
+	drawString("0100");
+	glRasterPos2f(win_x_right / 2 - 30 + win_x / 2, win_y_top / 2 + win_y / 2);
+	drawString("1010");
+	glRasterPos2f(win_x_right / 2 - 30 + win_x / 2, win_y_top / 2 + win_y_bottom / 2);
+	drawString("0010");
+	glRasterPos2f(win_x_right / 2 - 30 + win_x / 2, win_y_bottom / 2);
+	drawString("0110");
+	glLineWidth(1);
+	PlotLine(win_x_left, 0, win_x_left, win_y);
+	PlotLine(0, win_y_top, win_x, win_y_top);
+	PlotLine(win_x_right, 0, win_x_right, win_y);
+	PlotLine(0, win_y_bottom, win_x, win_y_bottom);
+	decide(P1, P2);
+	decide(P3, P4);
+	decide(P5, P6);
+	decide(P7, P8);
+	glutSwapBuffers();
+}
+void myinit(void) { // Initialisation
+	glMatrixMode(GL_PROJECTION);
+	glLoadIdentity();
+	gluOrtho2D(0, win_x, 0, win_y);
+}
+int main(int argc, char* argv[]) { // The main program
+	glutInit(&argc, (char**)argv);
+	glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB);
+	glutInitWindowPosition(100, 100);
+	glutInitWindowSize(win_x, win_y);
+	glutCreateWindow("Cohen-Sutherland");
+	myinit();
+	glutDisplayFunc(renderScene);
+	glutMainLoop();
+	return 0;
+}
+
+
