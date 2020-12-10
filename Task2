@@ -1,0 +1,121 @@
+#define FREEGLUT_STATIC
+#include <GL/freeglut.h>
+#include <stdlib.h>
+#include <stdio.h>
+// define a 64*64*3 plane for checkerboard
+#define imageWidth 64
+#define imageHeight 64
+GLubyte image[imageWidth][imageHeight][3];
+int slef = 0;
+
+// make a checkerboard
+void makespeImage(void) {
+	int i, j, c, r, g, b;
+	for (i = 0; i < imageWidth; i++) {
+		for (j = 0; j < imageHeight; j++) {
+			r = (i * j) * 255;
+			g = (i * i) * 255;
+			b = (j * j) * 255;
+
+			image[i][j][0] = (GLubyte)r;
+			image[i][j][1] = (GLubyte)g;
+			image[i][j][2] = (GLubyte)b;
+
+		}
+	}
+}
+
+// all the texture-mapping initialisation occurs here
+void myinit(void) {
+	glClearColor(0.0, 0.0, 0.0, 0.0);
+	glEnable(GL_DEPTH_TEST);
+	glDepthFunc(GL_LEQUAL);
+	makespeImage();
+	glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+	glTexImage2D(GL_TEXTURE_2D, 0, 3, imageWidth, imageHeight, 0, GL_RGB, GL_UNSIGNED_BYTE,
+		&image[0][0][0]);
+	// set texture parameters
+	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
+	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
+	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	// set texture environment parameters
+	glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_DECAL);
+	glEnable(GL_TEXTURE_2D);
+	// select flat or smooth shading
+	glShadeModel(GL_FLAT);
+}
+void myIdleFunc(void) {
+	slef += 0.1;
+}
+
+// specify texture co-ordinates
+void display(void) {
+	// clear buffers to preset values
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	glPushMatrix();
+	glRotatef(slef, 0, 0, 1);// click the mouse and the image will rotate
+	// GL_QUADS: Treats each group of four vertices as an independent quadrilateral
+	glBegin(GL_QUADS);
+	// Put the two textures together
+	glTexCoord2f(1.0, 0.0);
+	glVertex3f(-1, -1, 1);
+	glTexCoord2f(0.0, 1.0);
+	glVertex3f(-1, 1, 1);
+	glTexCoord2f(-1.0, 0.0);
+	glVertex3f(1, 1, 1);
+	glTexCoord2f(0.0, -1.0);
+	glVertex3f(1, -1, 1);
+
+	glTexCoord2f(1.0, 0.0);
+	glVertex3f(-1, -1, 1);
+	glTexCoord2f(0.0, 1.0);
+	glVertex3f(-1, 1, 1);
+	glTexCoord2f(-1.0, 0.0);
+	glVertex3f(-2, 1, 1);
+	glTexCoord2f(0.0, -1.0);
+	glVertex3f(-2, -1, 1);
+
+
+	glEnd();
+	glPopMatrix();
+	glutSwapBuffers();
+	glFlush();
+}
+//
+void myReshape(GLsizei w, GLsizei h) {
+	// set the viewport
+	glViewport(0, 0, w, h);
+	// specify which matrix is the current matrix
+	// GL_PROJECTION: Applies subsequent matrix operations to the projection matrix stack.
+	glMatrixMode(GL_PROJECTION);
+	// replace the current matrix with the identity matrix
+
+	glLoadIdentity();
+	// set up a perspective projection matrix
+	gluPerspective(60.0, 1.0 * (GLfloat)w / (GLfloat)h, 1.0, 30.0);
+	// GL_MODELVIEW: Applies subsequent matrix operations to the modelview matrix stack.
+	glMatrixMode(GL_MODELVIEW);
+	glLoadIdentity();
+	// multiply the current matrix by a translation matrix
+	// The current matrix is multiplied by this translation matrix, with the product
+	// replacing the current matrix
+	glTranslatef(0.0, 0.0, -3.6);
+}
+//
+void main(int argc, char** argv) {
+	glutInit(&argc, argv);
+	glutInitDisplayMode(GLUT_SINGLE | GLUT_RGBA | GLUT_DEPTH);
+	glutInitWindowPosition(0, 0);
+	glutInitWindowSize(500, 500);
+	if (!glutCreateWindow("Texture Mapping"))
+		exit(0);
+	myinit();
+	// glutReshapeFunc sets the reshape callback for the current window
+	glutReshapeFunc(myReshape);
+	// sets the display callback for the current window
+	glutDisplayFunc(display);
+	glutIdleFunc(myIdleFunc);
+
+	glutMainLoop();
+}
